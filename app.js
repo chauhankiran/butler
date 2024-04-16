@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
 // Companies.
 // GET http://localhost:3000/companies
 app.get("/companies", async (req, res, next) => {
-  const { limit, page } = req.query;
+  const { limit, page, name } = req.query;
 
   // 'take' per page.
   // We should not allow user to pass negative
@@ -51,6 +51,12 @@ app.get("/companies", async (req, res, next) => {
   let take = limit || 10;
   if (limit < 0 || limit > 100) {
     take = 10;
+  }
+
+  // Search by name.
+  let whereQuery = sql``;
+  if (name) {
+    whereQuery = sql`where name ilike ${name + "%"}`;
   }
 
   // The default page starts from 1 and due to this,
@@ -64,6 +70,7 @@ app.get("/companies", async (req, res, next) => {
         *
       from
         companies
+      ${whereQuery}
       limit ${take}
       offset ${skip}
     `;
