@@ -41,12 +41,31 @@ app.get("/", (req, res) => {
 // Companies.
 // GET http://localhost:3000/companies
 app.get("/companies", async (req, res, next) => {
+  const { limit, page } = req.query;
+
+  // 'take' per page.
+  // We should not allow user to pass negative
+  // number of records. Also, for the better
+  // performance, we have set the upper limit to
+  // 100.
+  let take = limit || 10;
+  if (limit < 0 || limit > 100) {
+    take = 10;
+  }
+
+  // The default page starts from 1 and due to this,
+  // we're doing "-1" to offset 0 for the first page
+  // and so on.
+  const skip = ((page || 1) - 1) * take;
+
   try {
     const companies = await sql`
       select
         *
       from
         companies
+      limit ${take}
+      offset ${skip}
     `;
 
     return res.json({
