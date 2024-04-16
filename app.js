@@ -24,6 +24,58 @@ app.use(helmet());
 app.use(compression());
 app.use(express.json());
 
+// Custom middleare.
+
+// Get the org level permission.
+const org = async (req, res, next) => {
+  try {
+    const org = await sql`
+        select
+          *
+        from
+          orgs
+        where
+          "isActive" = true
+      `.then(([x]) => x);
+
+    if (!org) {
+      return res.status(403).json({
+        error: "Permission denied",
+      });
+    }
+
+    // Do the required adjustments to shape the
+    // org.module.action object.
+    req.org = {
+      companies: {
+        access: org.canAccessCompanies,
+        read: org.canReadCompanies,
+        create: org.canCreateCompanies,
+        update: org.canUpdateCompanies,
+        remove: org.canRemoveCompanies,
+      },
+    };
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Check if the org has permission to
+// run the "action" on given "module"
+const orgCan = (action, module) => {
+  return (req, res, next) => {
+    if (!req.org[module][action]) {
+      return res.status(403).json({
+        error: `Permission denined: user can't ${action} ${module}`,
+      });
+    }
+
+    next();
+  };
+};
+
 // Helpers
 const isNum = (id) => {
   if (isNaN(id) || parseInt(id, 10) !== +id) {
@@ -38,9 +90,19 @@ app.get("/", (req, res) => {
   res.json({ message: "Application is up and running!" });
 });
 
+app.use("/", org, (req, res, next) => {
+  console.log("[org]: accessing org end-points");
+  next();
+});
+
 // Companies.
+app.use("/companies", orgCan("access", "companies"), (req, res, next) => {
+  console.log("[companies]: accessing companies end-points");
+  next();
+});
+
 // GET http://localhost:3000/companies
-app.get("/companies", async (req, res, next) => {
+app.get("/companies", orgCan("read", "companies"), async (req, res, next) => {
   const { limit, page, name } = req.query;
 
   // 'take' per page.
@@ -84,7 +146,7 @@ app.get("/companies", async (req, res, next) => {
 });
 
 // GET http://localhost:3000/companies/:id
-app.get("/companies/:id", async (req, res, next) => {
+app.get("/companies/:id", orgCan("read", "companies"), async (req, res, next) => {
   const { id } = req.params;
 
   // Check if the passed 'id' is number or not.
@@ -119,7 +181,7 @@ app.get("/companies/:id", async (req, res, next) => {
 });
 
 // POST http://localhost:3000/companies
-app.post("/companies", async (req, res, next) => {
+app.post("/companies", orgCan("create", "companies"), async (req, res, next) => {
   const { name } = req.body;
 
   try {
@@ -140,7 +202,7 @@ app.post("/companies", async (req, res, next) => {
 });
 
 // PATCH http://localhost:3000/companies/:id
-app.patch("/companies/:id", async (req, res, next) => {
+app.patch("/companies/:id", orgCan("update", "companies"), async (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
 
@@ -192,7 +254,7 @@ app.patch("/companies/:id", async (req, res, next) => {
 });
 
 // DELETE http://localhost:3000/companies/:id
-app.delete("/companies/:id", async (req, res, next) => {
+app.delete("/companies/:id", orgCan("remove", "companies"), async (req, res, next) => {
   const { id } = req.params;
 
   // Check if the passed 'id' is number or not.
