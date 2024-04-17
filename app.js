@@ -62,11 +62,65 @@ const org = async (req, res, next) => {
   }
 };
 
+// Get the user level permission.
+const permission = async (req, res, next) => {
+  try {
+    const permission = await sql`
+        select
+          *
+        from
+          permissions
+        where
+          "isActive" = true
+      `.then(([x]) => x);
+
+    if (!permission) {
+      return res.status(403).json({
+        error: "Permission denied",
+      });
+    }
+
+    // Do the required adjustments to shape the
+    // permission.module.action object.
+    req.permission = {
+      companies: {
+        access: permission.canAccessCompanies,
+        read: permission.canReadCompanies,
+        create: permission.canCreateCompanies,
+        update: permission.canUpdateCompanies,
+        remove: permission.canRemoveCompanies,
+      },
+    };
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Check if the org has permission to
 // run the "action" on given "module"
 const orgCan = (action, module) => {
   return (req, res, next) => {
+    // As both "module" and "action" are dynamic,
+    // can't use . notation to get the values.
     if (!req.org[module][action]) {
+      return res.status(403).json({
+        error: `Permission denined: org can't ${action} ${module}`,
+      });
+    }
+
+    next();
+  };
+};
+
+// Check if the user has permission to
+// run the "action" on given "module"
+const userCan = (action, module) => {
+  return (req, res, next) => {
+    // As both "module" and "action" are dynamic,
+    // can't use . notation to get the values.
+    if (!req.permission[module][action]) {
       return res.status(403).json({
         error: `Permission denined: user can't ${action} ${module}`,
       });
@@ -90,19 +144,20 @@ app.get("/", (req, res) => {
   res.json({ message: "Application is up and running!" });
 });
 
-app.use("/", org, (req, res, next) => {
-  console.log("[org]: accessing org end-points");
+app.use("/", org, permission, (req, res, next) => {
+  console.log("[org]: accessing org protected end-points");
+  console.log("[permission]: accessing user protected end-points");
   next();
 });
 
 // Companies.
-app.use("/companies", orgCan("access", "companies"), (req, res, next) => {
+app.use("/companies", orgCan("access", "companies"), userCan("access", "companies"), (req, res, next) => {
   console.log("[companies]: accessing companies end-points");
   next();
 });
 
 // GET http://localhost:3000/companies
-app.get("/companies", orgCan("read", "companies"), async (req, res, next) => {
+app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"), async (req, res, next) => {
   const { limit, page, name } = req.query;
 
   // 'take' per page.
@@ -146,13 +201,13 @@ app.get("/companies", orgCan("read", "companies"), async (req, res, next) => {
 });
 
 // GET http://localhost:3000/companies/:id
-app.get("/companies/:id", orgCan("read", "companies"), async (req, res, next) => {
+app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companies"), async (req, res, next) => {
   const { id } = req.params;
 
   // Check if the passed 'id' is number or not.
   if (!isNum(id)) {
     return res.status(400).json({
-      error: "Id must be number.",
+      error: "Id must be number",
     });
   }
 
@@ -168,7 +223,7 @@ app.get("/companies/:id", orgCan("read", "companies"), async (req, res, next) =>
 
     if (!company) {
       return res.status(404).json({
-        error: `Company with id #${id} doesn't exists.`,
+        error: `Company with id #${id} doesn't exists`,
       });
     }
 
@@ -181,7 +236,7 @@ app.get("/companies/:id", orgCan("read", "companies"), async (req, res, next) =>
 });
 
 // POST http://localhost:3000/companies
-app.post("/companies", orgCan("create", "companies"), async (req, res, next) => {
+app.post("/companies", orgCan("create", "companies"), userCan("create", "companies"), async (req, res, next) => {
   const { name } = req.body;
 
   try {
@@ -202,14 +257,14 @@ app.post("/companies", orgCan("create", "companies"), async (req, res, next) => 
 });
 
 // PATCH http://localhost:3000/companies/:id
-app.patch("/companies/:id", orgCan("update", "companies"), async (req, res, next) => {
+app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "companies"), async (req, res, next) => {
   const { id } = req.params;
   const { name } = req.body;
 
   // Check if the passed 'id' is number or not.
   if (!isNum(id)) {
     return res.status(400).json({
-      error: "Id must be number.",
+      error: "Id must be number",
     });
   }
 
@@ -227,7 +282,7 @@ app.patch("/companies/:id", orgCan("update", "companies"), async (req, res, next
 
     if (!company) {
       return res.status(404).json({
-        error: `Company with id #${id} doesn't exists.`,
+        error: `Company with id #${id} doesn't exists`,
       });
     }
   } catch (err) {
@@ -254,13 +309,13 @@ app.patch("/companies/:id", orgCan("update", "companies"), async (req, res, next
 });
 
 // DELETE http://localhost:3000/companies/:id
-app.delete("/companies/:id", orgCan("remove", "companies"), async (req, res, next) => {
+app.delete("/companies/:id", orgCan("remove", "companies"), userCan("remove", "companies"), async (req, res, next) => {
   const { id } = req.params;
 
   // Check if the passed 'id' is number or not.
   if (!isNum(id)) {
     return res.status(400).json({
-      error: "Id must be number.",
+      error: "Id must be number",
     });
   }
 
@@ -278,7 +333,7 @@ app.delete("/companies/:id", orgCan("remove", "companies"), async (req, res, nex
 
     if (!company) {
       return res.status(404).json({
-        error: `Company with id #${id} doesn't exists.`,
+        error: `Company with id #${id} doesn't exists`,
       });
     }
   } catch (err) {
