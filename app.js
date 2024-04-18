@@ -237,6 +237,18 @@ app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companie
 
 // POST http://localhost:3000/companies
 app.post("/companies", orgCan("create", "companies"), userCan("create", "companies"), async (req, res, next) => {
+  // Check the "body" fields. If unknown field
+  // exist in req.body, return error.
+  const fields = ["name"];
+  const body = req.body || {};
+  for (const [key, _] of Object.entries(body)) {
+    if (!fields.includes(key)) {
+      return res.status(400).json({
+        error: `Bad request: ${key} doesn't exist`,
+      });
+    }
+  }
+
   const { name } = req.body;
 
   try {
@@ -258,6 +270,18 @@ app.post("/companies", orgCan("create", "companies"), userCan("create", "compani
 
 // PATCH http://localhost:3000/companies/:id
 app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "companies"), async (req, res, next) => {
+  // Check the "body" fields. If unknown field
+  // exist in req.body, return error.
+  const fields = ["name"];
+  const body = req.body || {};
+  for (const [key, _] of Object.entries(body)) {
+    if (!fields.includes(key)) {
+      return res.status(400).json({
+        error: `Bad request: ${key} doesn't exist`,
+      });
+    }
+  }
+
   const { id } = req.params;
   const { name } = req.body;
 
