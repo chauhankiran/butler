@@ -38,3 +38,18 @@ create table permissions (
 );
 -- test entry
 insert into permissions ("userId") values (1);
+
+-- table: fields
+-- temp, might change if this schema is not 
+-- flexible enough to supports scenarios.
+create table fields (
+  id serial primary key,
+  name varchar(255) not null,
+  "displayName" varchar(255) not null,
+  module varchar(255) not null,
+  "isActive" bool not null default true
+);
+
+--- test entries
+insert into fields (name, "displayName", module) values ('id', 'Id', 'companies');
+insert into fields (name, "displayName", module) values ('name', 'Name', 'companies');

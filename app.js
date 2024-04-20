@@ -98,6 +98,38 @@ const permission = async (req, res, next) => {
   }
 };
 
+// Get the active fields for companies.
+const fields = (module) => {
+  return async (req, res, next) => {
+    try {
+      const moduleFields = await sql`
+        select
+          *
+        from
+          fields
+        where
+          "isActive" = true and
+          module = ${module}
+      `;
+
+      // Do the required adjustments to fetch
+      // the fields in pattern of
+      // req.fields.module.name
+      let fields = {};
+      for (const moduleField of moduleFields) {
+        fields[moduleField.name] = moduleField.displayName;
+      }
+      req.fields = {
+        companies: fields,
+      };
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+};
+
 // Check if the org has permission to
 // run the "action" on given "module"
 const orgCan = (action, module) => {
@@ -106,7 +138,7 @@ const orgCan = (action, module) => {
     // can't use . notation to get the values.
     if (!req.org[module][action]) {
       return res.status(403).json({
-        error: `Permission denined: org can't ${action} ${module}`,
+        error: `Permission denied: org can't ${action} ${module}`,
       });
     }
 
@@ -122,7 +154,7 @@ const userCan = (action, module) => {
     // can't use . notation to get the values.
     if (!req.permission[module][action]) {
       return res.status(403).json({
-        error: `Permission denined: user can't ${action} ${module}`,
+        error: `Permission denied: user can't ${action} ${module}`,
       });
     }
 
@@ -151,10 +183,16 @@ app.use("/", org, permission, (req, res, next) => {
 });
 
 // Companies.
-app.use("/companies", orgCan("access", "companies"), userCan("access", "companies"), (req, res, next) => {
-  console.log("[companies]: accessing companies end-points");
-  next();
-});
+app.use(
+  "/companies",
+  orgCan("access", "companies"),
+  userCan("access", "companies"),
+  fields("companies"),
+  (req, res, next) => {
+    console.log("[companies]: accessing companies end-points");
+    next();
+  },
+);
 
 // GET http://localhost:3000/companies
 app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"), async (req, res, next) => {
@@ -172,8 +210,26 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
 
   // Search by name.
   let whereQuery = sql``;
-  if (name) {
+  if (name && req.fields.companies.name) {
     whereQuery = sql`where name ilike ${name + "%"}`;
+  }
+
+  // active fields are going to be
+  // fetched from the database.
+  // TODO: Improve the implementation logic.
+  let columns = [];
+  if (req.fields.companies.id) {
+    columns.push("id");
+  }
+  if (req.fields.companies.name) {
+    columns.push("name");
+  }
+  // if no fields are active, return
+  // an error.
+  if (columns.length === 0) {
+    return res.status(400).json({
+      error: "Terminated request: No fields are there to display",
+    });
   }
 
   // The default page starts from 1 and due to this,
@@ -184,7 +240,7 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
   try {
     const companies = await sql`
       select
-        *
+        ${sql(columns)}
       from
         companies
       ${whereQuery}
@@ -211,10 +267,28 @@ app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companie
     });
   }
 
+  // active fields are going to be
+  // fetched from the database.
+  // TODO: Improve the implementation logic.
+  let columns = [];
+  if (req.fields.companies.id) {
+    columns.push("id");
+  }
+  if (req.fields.companies.name) {
+    columns.push("name");
+  }
+  // if no fields are active, return
+  // an error.
+  if (columns.length === 0) {
+    return res.status(400).json({
+      error: "Request terminated: No fields are not activate",
+    });
+  }
+
   try {
     const company = await sql`
       select
-        *
+        ${sql(columns)}
       from
         companies
       where
@@ -251,13 +325,32 @@ app.post("/companies", orgCan("create", "companies"), userCan("create", "compani
 
   const { name } = req.body;
 
+  // active fields are going to be
+  // fetched from the database.
+  // TODO: Improve the implementation logic.
+  let companyObj = {};
+  if (name) {
+    if (req.fields.companies.name) {
+      companyObj["name"] = name;
+    } else {
+      return res.status(400).json({
+        error: `Request terminated: name field is not activate`,
+      });
+    }
+  }
+  // if no fields are active, return an error.
+  // TODO: Improve the implementation logic.
+  if (Object.keys(companyObj).length === 0) {
+    return res.status(400).json({
+      error: `Request terminated: No fields are not activate`,
+    });
+  }
+
   try {
     const company = await sql`
-      insert into companies (
-        name
-      ) values (
-        ${name}
-      ) returning id
+      insert into companies 
+        ${sql(companyObj)}
+      returning id
     `.then(([x]) => x);
 
     return res.status(201).json({
@@ -313,12 +406,33 @@ app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "co
     next(err);
   }
 
+  // active fields are going to be
+  // fetched from the database.
+  // TODO: Improve the implementation logic.
+  let companyObj = {};
+  if (name) {
+    if (req.fields.companies.name) {
+      companyObj["name"] = name;
+    } else {
+      return res.status(400).json({
+        error: `Request terminated: name field is not activate`,
+      });
+    }
+  }
+  // if no fields are active, return an error.
+  // TODO: Improve the implementation logic.
+  if (Object.keys(companyObj).length === 0) {
+    return res.status(400).json({
+      error: `Request terminated: No fields are not activate`,
+    });
+  }
+
   try {
     const company = await sql`
       update
         companies
       set
-        name = ${name}
+        ${sql(companyObj)}
       where
         id = ${id}
       returning id
