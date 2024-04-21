@@ -14,6 +14,14 @@ const sql = postgres({
   database: process.env.DB_NAME,
   username: process.env.DB_USER,
   password: process.env.DB_PASS,
+  types: {
+    date: {
+      to: 1184,
+      from: [1082, 1083, 1114, 1184],
+      serialize: (date) => date,
+      parse: (date) => new Date(date).toLocaleDateString(),
+    },
+  },
   debug: console.log,
 });
 
@@ -24,7 +32,7 @@ app.use(helmet());
 app.use(compression());
 app.use(express.json());
 
-// Custom middleare.
+// Custom middleware.
 
 // Get the org level permission.
 const org = async (req, res, next) => {
@@ -224,6 +232,9 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
   if (req.fields.companies.name) {
     columns.push("name");
   }
+  if (req.fields.companies.createdAt) {
+    columns.push("createdAt");
+  }
   // if no fields are active, return
   // an error.
   if (columns.length === 0) {
@@ -276,6 +287,9 @@ app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companie
   }
   if (req.fields.companies.name) {
     columns.push("name");
+  }
+  if (req.fields.companies.createdAt) {
+    columns.push("createdAt");
   }
   // if no fields are active, return
   // an error.

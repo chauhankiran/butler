@@ -4,7 +4,8 @@ create database butler;
 -- table: companies
 create table companies (
   id serial primary key,
-  name varchar(255)
+  name varchar(255),
+  "createdAt" timestamptz default current_timestamp
 );
 
 -- table: orgs
@@ -53,3 +54,4 @@ create table fields (
 --- test entries
 insert into fields (name, "displayName", module) values ('id', 'Id', 'companies');
 insert into fields (name, "displayName", module) values ('name', 'Name', 'companies');
+insert into fields (name, "displayName", module) values ('createdAt', 'Created at', 'companies');
