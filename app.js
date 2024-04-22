@@ -235,6 +235,9 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
   if (req.fields.companies.createdAt) {
     columns.push("createdAt");
   }
+  if (req.fields.companies.updatedAt) {
+    columns.push("updatedAt");
+  }
   // if no fields are active, return
   // an error.
   if (columns.length === 0) {
@@ -290,6 +293,9 @@ app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companie
   }
   if (req.fields.companies.createdAt) {
     columns.push("createdAt");
+  }
+  if (req.fields.companies.updatedAt) {
+    columns.push("updatedAt");
   }
   // if no fields are active, return
   // an error.
@@ -439,6 +445,10 @@ app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "co
     return res.status(400).json({
       error: `Request terminated: No fields are not activate`,
     });
+  } else {
+    // If we have field(s) to update, add timestamp when it
+    // is updated.
+    companyObj["updatedAt"] = sql`now()`;
   }
 
   try {
