@@ -1,6 +1,13 @@
 -- database: butler
 create database butler;
 
+-- table: users
+create table users (
+  id serial primary key,
+  email varchar(255) unique not null,
+  password varchar(255) not null
+);
+
 -- table: companies
 create table companies (
   id serial primary key,

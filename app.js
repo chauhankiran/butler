@@ -34,7 +34,7 @@ app.use(express.json());
 
 // Custom middleware.
 
-// Get the org level permission.
+// Middleware: Get the org level permission.
 const org = async (req, res, next) => {
   try {
     const org = await sql`
@@ -70,7 +70,7 @@ const org = async (req, res, next) => {
   }
 };
 
-// Get the user level permission.
+// Middleware: Get the user level permission.
 const permission = async (req, res, next) => {
   try {
     const permission = await sql`
@@ -106,7 +106,7 @@ const permission = async (req, res, next) => {
   }
 };
 
-// Get the active fields for companies.
+// Middleware: Get the active fields for companies.
 const fields = (module) => {
   return async (req, res, next) => {
     try {
@@ -138,7 +138,7 @@ const fields = (module) => {
   };
 };
 
-// Check if the org has permission to
+// Middleware: Check if the org has permission to
 // run the "action" on given "module"
 const orgCan = (action, module) => {
   return (req, res, next) => {
@@ -154,7 +154,7 @@ const orgCan = (action, module) => {
   };
 };
 
-// Check if the user has permission to
+// Middleware: Check if the user has permission to
 // run the "action" on given "module"
 const userCan = (action, module) => {
   return (req, res, next) => {
@@ -171,12 +171,28 @@ const userCan = (action, module) => {
 };
 
 // Helpers
+
+// Helper: Check if the given parameter
+// is number or not.
 const isNum = (id) => {
   if (isNaN(id) || parseInt(id, 10) !== +id) {
     return false;
   }
 
   return true;
+};
+
+// Helper: Check if the company
+// exists or not based on passed id.
+const isCompanyExists = async (id) => {
+  return await sql`
+    select
+      id
+    from
+      companies
+    where
+      id = ${id}
+  `.then(([x]) => x);
 };
 
 // Routes.
@@ -408,14 +424,7 @@ app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "co
   // Before updating the company,
   // check if the company exists or not.
   try {
-    const company = await sql`
-      select
-        id
-      from
-        companies
-      where
-        id = ${id}
-    `.then(([x]) => x);
+    const company = await isCompanyExists(id);
 
     if (!company) {
       return res.status(404).json({
@@ -484,14 +493,7 @@ app.delete("/companies/:id", orgCan("remove", "companies"), userCan("remove", "c
   // Before deleting the company,
   // check if the company exists or not.
   try {
-    const company = await sql`
-      select
-        id
-      from
-        companies
-      where
-        id = ${id}
-    `.then(([x]) => x);
+    const company = await isCompanyExists(id);
 
     if (!company) {
       return res.status(404).json({
