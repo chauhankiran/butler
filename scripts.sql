@@ -64,3 +64,17 @@ insert into fields (name, "displayName", module) values ('id', 'Id', 'companies'
 insert into fields (name, "displayName", module) values ('name', 'Name', 'companies');
 insert into fields (name, "displayName", module) values ('createdAt', 'Created at', 'companies');
 insert into fields (name, "displayName", module) values ('updatedAt', 'Updated at', 'companies');
+
+-- table: views
+-- temp, might change if this schema is not 
+-- flexible enough to supports scenarios.
+-- fields to add: sequence
+create table views (
+  id serial primary key,
+  field varchar(255) not null,
+  module varchar(255) not null
+);
+
+--- test entries
+insert into views (field, module) values ('id', 'companies');
+insert into views (field, module) values ('name', 'companies');
