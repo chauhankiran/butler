@@ -220,7 +220,7 @@ app.use(
 
 // GET http://localhost:3000/companies
 app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"), async (req, res, next) => {
-  const { limit, page, name } = req.query;
+  const { limit, page, name, withHeaders } = req.query;
 
   // 'take' per page.
   // We should not allow user to pass negative
@@ -241,6 +241,9 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
   // The fields in list of companies
   // now fetched from 'views'.
   let columns = [];
+  // TODO: conditionally add headers. As of now,
+  // without withHeaders also run the headers related code.
+  let headers = [];
   try {
     const views = await sql`
       select
@@ -255,24 +258,28 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
       if (view.field === "id") {
         if (req.fields.companies.id) {
           columns.push("id");
+          headers.push(req.fields.companies.id);
         }
       }
 
       if (view.field === "name") {
         if (req.fields.companies.name) {
           columns.push("name");
+          headers.push(req.fields.companies.name);
         }
       }
 
       if (view.field === "createdAt") {
         if (req.fields.companies.createdAt) {
           columns.push("createdAt");
+          headers.push(req.fields.companies.createdAt);
         }
       }
 
       if (view.field === "updatedAt") {
         if (req.fields.companies.updatedAt) {
           columns.push("updatedAt");
+          headers.push(req.fields.companies.updatedAt);
         }
       }
     }
@@ -306,6 +313,10 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
 
     return res.json({
       data: companies,
+      // add headers in res. if 'withHeaders' is passed as query string.
+      // The value of this query string can be anything to become true.
+      // but suggested to use 'true' value e.g. withHeaders=true
+      ...(withHeaders && headers),
     });
   } catch (err) {
     next(err);
