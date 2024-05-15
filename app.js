@@ -238,22 +238,48 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
     whereQuery = sql`where name ilike ${name + "%"}`;
   }
 
-  // active fields are going to be
-  // fetched from the database.
-  // TODO: Improve the implementation logic.
+  // The fields in list of companies
+  // now fetched from 'views'.
   let columns = [];
-  if (req.fields.companies.id) {
-    columns.push("id");
+  try {
+    const views = await sql`
+      select
+        field
+      from
+        views
+      where
+        module = 'companies'
+    `;
+
+    for (const view of views) {
+      if (view.field === "id") {
+        if (req.fields.companies.id) {
+          columns.push("id");
+        }
+      }
+
+      if (view.field === "name") {
+        if (req.fields.companies.name) {
+          columns.push("name");
+        }
+      }
+
+      if (view.field === "createdAt") {
+        if (req.fields.companies.createdAt) {
+          columns.push("createdAt");
+        }
+      }
+
+      if (view.field === "updatedAt") {
+        if (req.fields.companies.updatedAt) {
+          columns.push("updatedAt");
+        }
+      }
+    }
+  } catch (err) {
+    next(err);
   }
-  if (req.fields.companies.name) {
-    columns.push("name");
-  }
-  if (req.fields.companies.createdAt) {
-    columns.push("createdAt");
-  }
-  if (req.fields.companies.updatedAt) {
-    columns.push("updatedAt");
-  }
+
   // if no fields are active, return
   // an error.
   if (columns.length === 0) {
