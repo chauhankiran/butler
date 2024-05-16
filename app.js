@@ -1,4 +1,5 @@
 require("dotenv").config();
+const crypto = require("crypto");
 const compression = require("compression");
 const cors = require("cors");
 const express = require("express");
@@ -195,9 +196,111 @@ const isCompanyExists = async (id) => {
   `.then(([x]) => x);
 };
 
+// Helper: Generate SHA256 has for the given value.
+const generateSHA256 = (value) => {
+  return crypto.createHash("sha256").update(value).digest("hex");
+};
+
+// Helper: Generate random string of length 2 * size.
+const generateRandom = (size) => {
+  return crypto.randomBytes(size).toString("hex");
+};
+
 // Routes.
 app.get("/", (req, res) => {
   res.json({ message: "Application is up and running!" });
+});
+
+// Auth.
+app.use("/auth", (req, res, next) => {
+  console.log("[auth]: accessing auth protected end-points");
+  next();
+});
+
+// POST http://localhost:3000/auth/login
+app.post("/auth/login", async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // Single and guided validation.
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: "Password is required" });
+  }
+
+  const passwordHash = generateSHA256(password);
+
+  try {
+    // Check first the email.
+    // User with given email is exist or not.
+    const user = await sql`
+      select
+        *
+      from
+        users
+      where
+        email = ${email}
+    `.then(([x]) => x);
+
+    if (!user) {
+      return res.status(400).json({ error: "Email is incorrect" });
+    }
+
+    // If user is found with given email,
+    // then check for the hashed password
+    // and then generate token.
+    if (user.password === passwordHash) {
+      const token = generateRandom(32);
+      // TODO: save token into database.
+
+      return res.json({ token: `${token}-${user.id}` });
+    } else {
+      return res.status(400).json({ error: "Password is incorrect" });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST http://localhost:3000/auth/register
+app.post("/auth/register", async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // Single and guided validation.
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: "Password is required" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters long" });
+  }
+
+  const passwordHash = generateSHA256(password);
+
+  try {
+    const user = await sql`
+      insert into users (
+        email,
+        password
+      ) values (
+        ${email},
+        ${passwordHash}
+      ) returning id
+    `.then(([x]) => x);
+
+    const token = generateRandom(32);
+    // TODO: save token into database.
+
+    return res.json({ token: `${token}-${user.id}` });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use("/", org, permission, (req, res, next) => {

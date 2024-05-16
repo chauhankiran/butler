@@ -5,7 +5,8 @@ create database butler;
 create table users (
   id serial primary key,
   email varchar(255) unique not null,
-  password varchar(255) not null
+  password varchar(255) not null,
+  type varchar(255) not null default 'user'
 );
 
 -- table: companies
