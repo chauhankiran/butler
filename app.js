@@ -39,13 +39,13 @@ app.use(express.json());
 const org = async (req, res, next) => {
   try {
     const org = await sql`
-        select
-          *
-        from
-          orgs
-        where
-          "isActive" = true
-      `.then(([x]) => x);
+      select
+        *
+      from
+        orgs
+      where
+        "isActive" = true
+    `.then(([x]) => x);
 
     if (!org) {
       return res.status(403).json({
@@ -75,13 +75,13 @@ const org = async (req, res, next) => {
 const permission = async (req, res, next) => {
   try {
     const permission = await sql`
-        select
-          *
-        from
-          permissions
-        where
-          "isActive" = true
-      `.then(([x]) => x);
+      select
+        *
+      from
+        permissions
+      where
+        "isActive" = true
+    `.then(([x]) => x);
 
     if (!permission) {
       return res.status(403).json({
@@ -253,7 +253,19 @@ app.post("/auth/login", async (req, res, next) => {
     // and then generate token.
     if (user.password === passwordHash) {
       const token = generateRandom(32);
-      // TODO: save token into database.
+
+      // Save the created token into database
+      // for future check up to validate the
+      // protected route requests.
+      await sql`
+        insert into tokens (
+          "userId",
+          token
+        ) values (
+          ${user.id},
+          ${token}
+        ) returning id
+      `.then(([x]) => x);
 
       return res.json({ token: `${token}-${user.id}` });
     } else {
@@ -295,7 +307,19 @@ app.post("/auth/register", async (req, res, next) => {
     `.then(([x]) => x);
 
     const token = generateRandom(32);
-    // TODO: save token into database.
+
+    // Save the created token into database
+    // for future check up to validate the
+    // protected route requests.
+    await sql`
+      insert into tokens (
+        "userId",
+        token
+      ) values (
+        ${user.id},
+        ${token}
+      ) returning id
+    `.then(([x]) => x);
 
     return res.json({ token: `${token}-${user.id}` });
   } catch (err) {

@@ -79,3 +79,11 @@ create table views (
 --- test entries
 insert into views (field, module) values ('id', 'companies');
 insert into views (field, module) values ('name', 'companies');
+
+-- table: tokens
+create table tokens (
+  id serial primary key,
+  "userId" int not null,
+  token varchar(255) not null,
+  "createdAt" timestamptz default current_timestamp
+);
