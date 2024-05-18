@@ -445,6 +445,13 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
           headers.push(req.fields.companies.updatedAt);
         }
       }
+
+      if (view.field === "createdBy") {
+        if (req.fields.companies.createdBy) {
+          columns.push("createdBy");
+          headers.push(req.fields.companies.createdBy);
+        }
+      }
     }
   } catch (err) {
     next(err);
@@ -513,6 +520,10 @@ app.get("/companies/:id", orgCan("read", "companies"), userCan("read", "companie
   if (req.fields.companies.updatedAt) {
     columns.push("updatedAt");
   }
+  if (req.fields.companies.createdBy) {
+    columns.push("createdBy");
+  }
+
   // if no fields are active, return
   // an error.
   if (columns.length === 0) {
@@ -580,6 +591,10 @@ app.post("/companies", orgCan("create", "companies"), userCan("create", "compani
     return res.status(400).json({
       error: `Request terminated: No fields are not activate`,
     });
+  } else {
+    // If we have field(s) to create, add createdBy
+    // when it is created.
+    companyObj["createdBy"] = req.userId;
   }
 
   try {
@@ -648,6 +663,7 @@ app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "co
       });
     }
   }
+
   // if no fields are active, return an error.
   // TODO: Improve the implementation logic.
   if (Object.keys(companyObj).length === 0) {
@@ -658,6 +674,9 @@ app.patch("/companies/:id", orgCan("update", "companies"), userCan("update", "co
     // If we have field(s) to update, add timestamp when it
     // is updated.
     companyObj["updatedAt"] = sql`now()`;
+    // TODO: Uncomment this when we added updatedBy
+    // column in database to track the updatedBy details.
+    // companyObj["updatedBy"] = req.userId;
   }
 
   try {

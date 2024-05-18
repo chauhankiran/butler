@@ -13,6 +13,7 @@ create table users (
 create table companies (
   id serial primary key,
   name varchar(255),
+  "createdBy" int not null,
   "createdAt" timestamptz default current_timestamp,
   "updatedAt" timestamptz
 );
@@ -65,6 +66,7 @@ insert into fields (name, "displayName", module) values ('id', 'Id', 'companies'
 insert into fields (name, "displayName", module) values ('name', 'Name', 'companies');
 insert into fields (name, "displayName", module) values ('createdAt', 'Created at', 'companies');
 insert into fields (name, "displayName", module) values ('updatedAt', 'Updated at', 'companies');
+insert into fields (name, "displayName", module) values ('createdBy', 'Created by', 'companies');
 
 -- table: views
 -- temp, might change if this schema is not 
