@@ -35,6 +35,42 @@ app.use(express.json());
 
 // Custom middleware.
 
+// Auth: Check if the user is authenticated
+// or not via passed header token - Authorization.
+const auth = async (req, res, next) => {
+  const authorization = req.get("Authorization");
+
+  if (!authorization) {
+    return res.status(400).json({ error: "Authorization token is required" });
+  }
+
+  const [token, userId] = authorization.split("-");
+  if (!token || !userId) {
+    return res.status(400).json({ error: "Corrupted token" });
+  }
+
+  try {
+    const user = await sql`
+      select
+        *
+      from
+        tokens
+      where
+        "userId" = ${userId} and 
+        token = ${token}
+    `.then(([x]) => x);
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid token" });
+    }
+
+    req.userId = user.id;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Middleware: Get the org level permission.
 const org = async (req, res, next) => {
   try {
@@ -327,7 +363,7 @@ app.post("/auth/register", async (req, res, next) => {
   }
 });
 
-app.use("/", org, permission, (req, res, next) => {
+app.use("/", auth, org, permission, (req, res, next) => {
   console.log("[org]: accessing org protected end-points");
   console.log("[permission]: accessing user protected end-points");
   next();
