@@ -403,7 +403,7 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
 
   // The fields in list of companies
   // now fetched from 'views'.
-  let columns = [];
+  let columns = "";
   // TODO: conditionally add headers. As of now,
   // without withHeaders also run the headers related code.
   let headers = [];
@@ -420,41 +420,48 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
     for (const view of views) {
       if (view.field === "id") {
         if (req.fields.companies.id) {
-          columns.push("id");
+          columns += "companies.id,";
           headers.push(req.fields.companies.id);
         }
       }
 
       if (view.field === "name") {
         if (req.fields.companies.name) {
-          columns.push("name");
+          columns += "companies.name,";
           headers.push(req.fields.companies.name);
         }
       }
 
       if (view.field === "createdAt") {
         if (req.fields.companies.createdAt) {
-          columns.push("createdAt");
+          columns += 'companies."createdAt",';
           headers.push(req.fields.companies.createdAt);
         }
       }
 
       if (view.field === "updatedAt") {
         if (req.fields.companies.updatedAt) {
-          columns.push("updatedAt");
+          columns += 'companies."updatedAt",';
           headers.push(req.fields.companies.updatedAt);
         }
       }
 
       if (view.field === "createdBy") {
         if (req.fields.companies.createdBy) {
-          columns.push("createdBy");
+          columns += 'creator.id as "creatorId",';
+          columns += 'creator.email as "creatorEmail",';
           headers.push(req.fields.companies.createdBy);
         }
       }
     }
   } catch (err) {
     next(err);
+  }
+
+  // TEMP: Track the issue
+  // https://github.com/porsager/postgres/issues/894
+  if (columns.length > 0 && columns.slice(-1) === ",") {
+    columns = columns.slice(0, -1);
   }
 
   // if no fields are active, return
@@ -473,9 +480,20 @@ app.get("/companies", orgCan("read", "companies"), userCan("read", "companies"),
   try {
     const companies = await sql`
       select
-        ${sql(columns)}
+        ${sql.unsafe(columns)}
       from
         companies
+      ${
+        // Check if 'creatorId' is within columns. If it is,
+        // then join with user table to fetch id and email of user.
+        columns.includes("creatorId")
+          ? sql`
+        join
+          users as creator
+        on
+          companies."createdBy" = creator.id`
+          : sql``
+      }
       ${whereQuery}
       limit ${take}
       offset ${skip}

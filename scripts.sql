@@ -1,5 +1,6 @@
 -- database: butler
 create database butler;
+-- \c butler;
 
 -- table: users
 create table users (
