@@ -28,7 +28,12 @@ const sql = postgres({
 
 // Middleware.
 app.use(morgan("tiny"));
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(helmet());
 app.use(compression());
 app.use(express.json());
@@ -255,6 +260,7 @@ app.use("/auth", (req, res, next) => {
 
 // POST http://localhost:3000/auth/login
 app.post("/auth/login", async (req, res, next) => {
+  console.log(req.cookies);
   const { email, password } = req.body;
 
   // Single and guided validation.
@@ -303,6 +309,7 @@ app.post("/auth/login", async (req, res, next) => {
         ) returning id
       `.then(([x]) => x);
 
+      res.cookie("token", `${token}-${user.id}`, { path: "/", httpOnly: true, secure: true });
       return res.json({ token: `${token}-${user.id}` });
     } else {
       return res.status(400).json({ error: "Password is incorrect" });
