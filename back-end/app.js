@@ -2,6 +2,7 @@ require("dotenv").config();
 const crypto = require("crypto");
 const compression = require("compression");
 const cors = require("cors");
+const cookie = require("cookie-parser");
 const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
@@ -37,13 +38,14 @@ app.use(
 app.use(helmet());
 app.use(compression());
 app.use(express.json());
+app.use(cookie());
 
 // Custom middleware.
 
 // Auth: Check if the user is authenticated
 // or not via passed header token - Authorization.
 const auth = async (req, res, next) => {
-  const authorization = req.get("Authorization");
+  const authorization = req.cookies.token;
 
   if (!authorization) {
     return res.status(400).json({ error: "Authorization token is required" });
@@ -364,6 +366,7 @@ app.post("/auth/register", async (req, res, next) => {
       ) returning id
     `.then(([x]) => x);
 
+    res.cookie("token", `${token}-${user.id}`, { path: "/", httpOnly: true, secure: true });
     return res.json({ token: `${token}-${user.id}` });
   } catch (err) {
     next(err);
